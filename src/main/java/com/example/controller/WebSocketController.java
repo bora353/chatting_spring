@@ -1,63 +1,60 @@
 package com.example.controller;
-
 import com.example.model.ChattingMessage;
-import lombok.RequiredArgsConstructor;
+import com.example.service.ChatService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.annotation.SubscribeMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 //@RequiredArgsConstructor
 public class WebSocketController {
 
-    private final SimpMessagingTemplate simpMessagingTemplate;
-    public WebSocketController(SimpMessagingTemplate messagingTemplate) {
-        this.simpMessagingTemplate = messagingTemplate;
-    }
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+
+    @Autowired
+    private ChatService chatService;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
 
-//    @MessageMapping("/chat/join")
-//    public void join(@Payload ChattingMessage chatDto) {
-//        log.info("User '{}' joined the room '{}'", chatDto.getUser(), chatDto.getRoomNo());
-//
-//        chatDto.setMessage(chatDto.getUser() + "님이 입장하셨습니다.");
-//        simpMessagingTemplate.convertAndSend("/subscribe/chat/room/" + chatDto.getRoomNo(), chatDto);
-//    }
+    @GetMapping("/api/messages/{roomNo}")
+    public List<ChattingMessage> getMessagesByRoom(@PathVariable String roomNo) {
+        log.info("Received request to get messages for room: {}", roomNo);
+
+        return chatService.getMessagesByRoom(roomNo);
+    }
 
     @MessageMapping("/chat/join/{roomNo}")
     public void join(@DestinationVariable String roomNo, @Payload ChattingMessage chatDto) {
         log.info("User '{}' joined the room '{}'", chatDto.getUser(), roomNo);
 
+        chatService.saveMessage(chatDto);
+
         chatDto.setMessage(chatDto.getUser() + "님이 입장하셨습니다.");
         simpMessagingTemplate.convertAndSend("/sub/chat/join/" + roomNo, chatDto);
     }
 
-
     @MessageMapping("/chat/message/{roomNo}")
     public void sendMessage(@DestinationVariable String roomNo, @Payload ChattingMessage chatDto) {
         log.info("User '{}' sent a message in the room '{}': '{}'", chatDto.getUser(), roomNo, chatDto.getMessage());
+
+        chatService.saveMessage(chatDto);
 
         if (chatDto.getMessage().startsWith("님이 방에 들어왔습니다.")) {
             simpMessagingTemplate.convertAndSend("/sub/chat/room/" + roomNo, chatDto);
         }
     }
 
-    /*@MessageMapping("/chat/message")
-    public void sendMessage(@Payload ChattingMessage chatDto) {
-        log.info("User '{}' sent a message in the room '{}': '{}'", chatDto.getUser(), chatDto.getRoomNo(), chatDto.getMessage());
-
-        if (chatDto.getMessage().startsWith("님이 방에 들어왔습니다.")) {
-            simpMessagingTemplate.convertAndSend("/sub/chat/room/" + chatDto.getRoomNo(), chatDto);
-        }
-    }*/
 
 //    // 추가적인 SubscribeMapping을 활용할 경우
 //    @SubscribeMapping("/chat/room/{id}")
