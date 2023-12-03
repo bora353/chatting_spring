@@ -16,17 +16,19 @@ public class ChattingMessage implements Serializable {
     private String message;
     private String user;
     private String timeStamp;
+    private String type;
 
 
     public ChattingMessage(){
 
     }
 
-    public ChattingMessage(String roomNo, String message, String user, String timeStamp){
+    public ChattingMessage(String roomNo, String message, String user, String timeStamp, String type){
         this.roomNo = roomNo;
         this.user = user;
         this.message = message;
         this.timeStamp = timeStamp;
+        this.type = type;
     }
 
 

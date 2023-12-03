@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service // Redis 저장 및 조회 Service
 public class ChatService {
@@ -18,6 +19,7 @@ public class ChatService {
     private RedisTemplate<String, ChattingMessage> redisTemplate;
     private final Logger log = LoggerFactory.getLogger(getClass());
 
+    private static final long MESSAGE_EXPIRATION_TIME = 60 * 60; // 1시간
 
     private static final String MESSAGE_KEY = "messages";
 
@@ -26,6 +28,9 @@ public class ChatService {
 
         String roomKey = MESSAGE_KEY + ":" + message.getRoomNo();
         redisTemplate.opsForList().rightPush(roomKey, message);
+
+        // 만료시간 설정 (1시간)
+        redisTemplate.expire(roomKey, MESSAGE_EXPIRATION_TIME, TimeUnit.SECONDS);
     }
 
     public List<ChattingMessage> getMessages() {
@@ -38,32 +43,20 @@ public class ChatService {
         return Collections.emptyList();
     }
 
-    public List<ChattingMessage> getMessagesByRoom(String roomNo) {
-        log.info("ChatService_getMessagesByRoom : "+ roomNo);
+    public List<ChattingMessage> getMessagesFromRedis(String roomNo) {
         String roomKey = MESSAGE_KEY + ":" + roomNo;
 
         Long size = redisTemplate.opsForList().size(roomKey);
-        log.info("Room key: {}, Message count: {}", roomKey, size);
+        //log.info("ChatService_getMessagesByRoom => Room key: {}", roomKey);
 
         if (size != null) {
             List<ChattingMessage> messages = redisTemplate.opsForList().range(roomKey, 0, size - 1);
-            log.info("Messages retrieved: {}", messages);
+            log.info("Redis Messages: {}", messages);
             return messages;
         }
         log.info("No messages found.");
         return Collections.emptyList();
     }
 
-
-//    private final SimpMessagingTemplate messagingTemplate;
-//
-//    public ChatService(SimpMessagingTemplate messagingTemplate){
-//        this.messagingTemplate = messagingTemplate;
-//    }
-//
-//    public void sendMessage(String topic, ChattingMessage message){
-//        // 메시지를 Redis로 전송
-//        messagingTemplate.convertAndSend(topic, message);
-//    }
 
 }
